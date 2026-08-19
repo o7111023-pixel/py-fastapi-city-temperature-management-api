@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import get_db
@@ -75,11 +75,19 @@ def update_city(
     city: schemas.CityCreate,
     db: Session = Depends(get_db),
 ) -> schemas.CityResponse:
-    updated_city = crud.update_city(
-        db=db,
-        city_id=city_id,
-        city=city,
-    )
+    try:
+        updated_city = crud.update_city(
+            db=db,
+            city_id=city_id,
+            city=city,
+        )
+    except IntegrityError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=409,
+            detail='City with this name already exists',
+        )
 
     if updated_city is None:
         raise HTTPException(
