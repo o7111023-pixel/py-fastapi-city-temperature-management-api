@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app import crud, schemas
 from app.database import get_db
@@ -19,10 +20,18 @@ def create_city(
     city: schemas.CityCreate,
     db: Session = Depends(get_db),
 ) -> schemas.CityResponse:
-    return crud.create_city(
-        db=db,
-        city=city,
-    )
+    try:
+        return crud.create_city(
+            db=db,
+            city=city,
+        )
+    except IntegrityError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=409,
+            detail='City with this name already exists',
+        )
 
 
 @router.get(
